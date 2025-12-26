@@ -4,10 +4,16 @@
     "license": "MIT",
     "scripts": {
       "dev": "parcel src/index.html",
-      "build": "parcel build src/index.html"
+      "build": "parcel build src/index.html",
+      "electron": "electron main.js",
+      "electron:dev": "concurrently \"parcel src/index.html --port 1234\" \"wait-on http://localhost:1234 && electron main.js\"",
+      "electron:build": "parcel build src/index.html --dist-dir dist && electron main.js"
     },
     "devDependencies": {
-      "parcel": "^2.6.2"
+      "parcel": "^2.6.2",
+      "electron": "^28.0.0",
+      "concurrently": "^8.2.2",
+      "wait-on": "^7.2.0"
     },
     "dependencies": {
       "@cubejs-client/core": "^0.31.0",

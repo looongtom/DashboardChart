@@ -36,3 +36,8 @@ docs/.vuepress/dist
 
 # Eslint
 .eslintcache
+
+./simple-chart/dist
+./simple-chart/node_modules
+./simple-chart/package-lock.json
+./simple-chart/.parcel-cache    
