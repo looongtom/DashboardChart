@@ -1,5 +1,6 @@
 import Chart from 'chart.js/auto'
 import 'chartjs-adapter-date-fns'
+import zoomPlugin from 'chartjs-plugin-zoom'
 
 (async function() {
   // Initialize data with timestamps (starting from 30 seconds ago)
@@ -102,6 +103,7 @@ import 'chartjs-adapter-date-fns'
       document.getElementById(config.id),
       {
         type: 'line',
+        plugins: [zoomPlugin],
         data: {
           datasets: config.datasets.map(dataset => ({
             label: dataset.label,
@@ -159,11 +161,62 @@ import 'chartjs-adapter-date-fns'
             tooltip: {
               intersect: false,
               mode: 'index'
+            },
+            zoom: {
+              pan: {
+                enabled: true,
+                mode: 'x',
+                modifierKey: null, // Allow panning without modifier key
+                threshold: 10
+              },
+              zoom: {
+                wheel: {
+                  enabled: true,
+                  modifierKey: 'ctrl', // Ctrl + wheel to zoom
+                },
+                pinch: {
+                  enabled: true
+                },
+                mode: 'x',
+                limits: {
+                  x: {
+                    min: 'original',
+                    max: 'original'
+                  }
+                }
+              },
+              reset: {
+                enabled: true
+              }
             }
+          },
+          interaction: {
+            mode: 'index',
+            intersect: false
           }
         }
       }
     );
+  });
+
+  // Add double-click event listener to reset zoom for each chart
+  charts.forEach((chart, index) => {
+    const canvas = chart.canvas;
+    canvas.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      // Try to use resetZoom method if available
+      if (chart.resetZoom && typeof chart.resetZoom === 'function') {
+        chart.resetZoom();
+      } else {
+        // Fallback: manually reset scales to original
+        const xScale = chart.scales.x;
+        if (xScale) {
+          xScale.options.min = undefined;
+          xScale.options.max = undefined;
+          chart.update('none');
+        }
+      }
+    });
   });
 
   // Function to generate mock data - adds new point every second for each dataset
@@ -185,9 +238,9 @@ import 'chartjs-adapter-date-fns'
             count: newCount
           });
           
-          // Keep only the last 60 data points (1 minute of data)
-          if (dataset.data.length > 60) {
-            dataset.data = dataset.data.slice(-60);
+          // Keep the last 300 data points (5 minutes of data) for historical viewing
+          if (dataset.data.length > 300) {
+            dataset.data = dataset.data.slice(-300);
           }
         }
       });
