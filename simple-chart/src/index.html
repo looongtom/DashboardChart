@@ -1,29 +1,31 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chart.js example</title>
+    <link rel="stylesheet" href="/main.css">
   </head>
   <body>
-    <div style="padding: 10px 20px; background: #e8f4f8; border-bottom: 1px solid #ddd;">
-      <p style="margin: 5px 0; font-size: 14px; color: #333;">
-        <strong>Hướng dẫn:</strong> Kéo chuột để xem dữ liệu cũ | Ctrl + cuộn chuột để zoom | Double-click để reset zoom
-      </p>
-    </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
-      <div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
-        <h3 style="margin-top: 0; text-align: center;">Dashboard 1</h3>
+    <div class="dashboard-container">
+      <div class="dashboard-panel">
+        <h3>Dashboard 1 - Many Legends Test (18 items)</h3>
+        <div id="legend-dashboard1" class="custom-legend"></div>
         <canvas id="dashboard1"></canvas>
       </div>
-      <div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
-        <h3 style="margin-top: 0; text-align: center;">Dashboard 2</h3>
+      <div class="dashboard-panel">
+        <h3>Dashboard 2</h3>
+        <div id="legend-dashboard2" class="custom-legend"></div>
         <canvas id="dashboard2"></canvas>
       </div>
-      <div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
-        <h3 style="margin-top: 0; text-align: center;">Dashboard 3</h3>
+      <div class="dashboard-panel">
+        <h3>Dashboard 3</h3>
+        <div id="legend-dashboard3" class="custom-legend"></div>
         <canvas id="dashboard3"></canvas>
       </div>
-      <div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9;">
-        <h3 style="margin-top: 0; text-align: center;">Dashboard 4</h3>
+      <div class="dashboard-panel">
+        <h3>Dashboard 4</h3>
+        <div id="legend-dashboard4" class="custom-legend"></div>
         <canvas id="dashboard4"></canvas>
       </div>
     </div>

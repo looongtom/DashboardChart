@@ -16,17 +16,24 @@ function createWindow() {
     }
   });
 
-  // Load from built files in dist folder
-  const indexPath = path.join(__dirname, 'dist', 'index.html');
-  
-  // Check if dist/index.html exists
-  if (!fs.existsSync(indexPath)) {
-    console.error('dist/index.html not found. Please run: npm run build');
-    app.quit();
-    return;
-  }
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
-  mainWindow.loadFile(indexPath);
+  if (devServerUrl) {
+    // DEV MODE: load from Vite dev server (HMR, hot reload)
+    mainWindow.loadURL(devServerUrl);
+    mainWindow.webContents.openDevTools();
+  } else {
+    // PROD MODE: load from built files in dist folder
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+
+    if (!fs.existsSync(indexPath)) {
+      console.error('dist/index.html not found. Please run: npm run electron:build');
+      app.quit();
+      return;
+    }
+
+    mainWindow.loadFile(indexPath);
+  }
 
   // Handle window closed
   mainWindow.on('closed', () => {
