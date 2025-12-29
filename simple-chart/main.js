@@ -1,9 +1,8 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('fs');
 
 let mainWindow;
-let parcelProcess;
 
 function createWindow() {
   // Create the browser window
@@ -17,20 +16,17 @@ function createWindow() {
     }
   });
 
-  // Check if we're in development mode (parcel dev server) or production (built files)
-  const isDev = process.env.NODE_ENV !== 'production';
+  // Load from built files in dist folder
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
   
-  if (isDev) {
-    // In development, load from Parcel dev server
-    mainWindow.loadURL('http://localhost:1234');
-    
-    // Open DevTools in development
-    mainWindow.webContents.openDevTools();
-  } else {
-    // In production, load from built files
-    const indexPath = path.join(__dirname, 'dist', 'index.html');
-    mainWindow.loadFile(indexPath);
+  // Check if dist/index.html exists
+  if (!fs.existsSync(indexPath)) {
+    console.error('dist/index.html not found. Please run: npm run build');
+    app.quit();
+    return;
   }
+
+  mainWindow.loadFile(indexPath);
 
   // Handle window closed
   mainWindow.on('closed', () => {
@@ -55,13 +51,6 @@ app.on('window-all-closed', () => {
   // On macOS, keep app running even when all windows are closed
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-});
-
-// Cleanup on exit
-app.on('before-quit', () => {
-  if (parcelProcess) {
-    parcelProcess.kill();
   }
 });
 

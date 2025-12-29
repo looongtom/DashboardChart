@@ -3,16 +3,16 @@
     "version": "1.0.0",
     "license": "MIT",
     "scripts": {
-        "dev": "parcel src/index.html",
-        "build": "parcel build src/index.html",
+        "dev": "vite",
+        "build": "vite build",
         "electron": "electron main.js",
-        "electron:dev": "concurrently \"parcel src/index.html --port 1234\" \"wait-on http://localhost:1234 && electron main.js\"",
-        "electron:build": "parcel build src/index.html --dist-dir dist && electron main.js"
+        "electron:build": "vite build && electron main.js"
     },
     "devDependencies": {
         "concurrently": "^8.2.2",
-        "electron": "^28.0.0",
+        "electron": "^34.3.0",
         "parcel": "^2.6.2",
+        "vite": "^7.3.0",
         "wait-on": "^7.2.0"
     },
     "dependencies": {
