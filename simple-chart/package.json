@@ -2,14 +2,16 @@
     "name": "chartjs-example",
     "version": "1.0.0",
     "license": "MIT",
+    "main": "main.js",
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "electron": "electron main.js",
-        "electron:build": "vite build && electron main.js",
-        "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron main.js\""
+        "electron": "electron .",
+        "electron:build": "vite build && electron .",
+        "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && cross-env VITE_DEV_SERVER_URL=http://localhost:3000 electron .\""
     },
     "devDependencies": {
+        "@vitejs/plugin-react": "^5.1.2",
         "concurrently": "^8.2.2",
         "cross-env": "^7.0.3",
         "electron": "^34.3.0",
@@ -21,6 +23,9 @@
         "@cubejs-client/core": "^0.31.0",
         "chart.js": "^4.0.0",
         "chartjs-adapter-date-fns": "^3.0.0",
-        "chartjs-plugin-zoom": "^2.2.0"
+        "chartjs-plugin-zoom": "^2.2.0",
+        "react": "^19.2.3",
+        "react-dom": "^19.2.3",
+        "react-router-dom": "^7.11.0"
     }
 }
