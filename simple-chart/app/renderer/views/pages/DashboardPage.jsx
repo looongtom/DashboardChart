@@ -1,27 +1,58 @@
-import React, { useEffect, useRef } from 'react';
-import { dashboardConfigs } from '../js/dashboardConfig';
-import { initializeData, generateMockData } from '../js/mockData';
+import React, { useEffect, useRef, useContext, useState } from 'react';
+import { generateMockData } from '../js/mockData';
 import { createCharts, updateCharts } from '../js/chartManager';
+import { fetchSessionDashboardData } from '../js/sessionApi';
+import { SessionContext } from '../context/SessionContext';
 
 function DashboardPage() {
   const chartsRef = useRef([]);
   const intervalRef = useRef(null);
+  const { selectedSessionId, sessionData, setSessionData } = useContext(SessionContext);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Initialize data for all dashboards
-    const initializedConfigs = initializeData(dashboardConfigs);
-    
-    // Create chart instances
-    const charts = createCharts(initializedConfigs);
-    chartsRef.current = charts;
-    
-    // Update charts every second (1000ms) for real-time visualization
-    intervalRef.current = setInterval(() => {
-      const updatedConfigs = generateMockData(dashboardConfigs);
-      updateCharts(chartsRef.current, updatedConfigs);
-    }, 1000);
+    let isMounted = true;
 
-    // Cleanup on unmount
+    async function setupCharts() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Ưu tiên dùng data đã có trong context (được set từ ManagementsPage)
+        let configs = sessionData;
+
+        // Nếu chưa có thì mock gọi API với session mặc định
+        if (!configs) {
+          const fallbackSessionId = selectedSessionId || 'default';
+          configs = await fetchSessionDashboardData(fallbackSessionId);
+          if (!isMounted) return;
+          setSessionData(configs);
+        }
+
+        // Tạo chart với data hiện tại
+        const charts = createCharts(configs);
+        chartsRef.current = charts;
+
+        // Cập nhật realtime mỗi 1s bằng mock data
+        intervalRef.current = setInterval(() => {
+          const updatedConfigs = generateMockData(configs);
+          updateCharts(chartsRef.current, updatedConfigs);
+        }, 1000);
+      } catch (e) {
+        if (!isMounted) return;
+        console.error('Failed to setup dashboard charts', e);
+        setError('Không tải được dữ liệu dashboard (mock).');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    setupCharts();
+
+    // Cleanup on unmount / khi đổi session
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -33,10 +64,20 @@ function DashboardPage() {
         }
       });
     };
-  }, []);
+  }, [selectedSessionId, sessionData, setSessionData]);
 
   return (
     <div className="dashboard-container">
+      {isLoading && (
+        <div className="dashboard-panel">
+          <h3>Đang tải dữ liệu dashboard...</h3>
+        </div>
+      )}
+      {error && (
+        <div className="dashboard-panel">
+          <h3>{error}</h3>
+        </div>
+      )}
       <div className="dashboard-panel">
         <h3>Dashboard 1 - Many Legends</h3>
         <div id="legend-dashboard1" className="custom-legend"></div>

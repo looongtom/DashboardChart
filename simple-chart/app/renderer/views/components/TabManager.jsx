@@ -5,7 +5,7 @@ import '../style/tabManager.css';
 const tabs = [
   { path: '/', label: 'Dashboard', icon: '📊' },
   { path: '/analytics', label: 'Analytics', icon: '📈' },
-  { path: '/reports', label: 'Reports', icon: '📄' },
+  { path: '/managements', label: 'Managements', icon: '📋' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
