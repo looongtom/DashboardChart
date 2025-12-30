@@ -1,0 +1,289 @@
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f9f9f9;
+}
+
+.dashboard-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 32px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.dashboard-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.back-button {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.back-button:hover {
+  color: #333;
+}
+
+.dashboard-title-section {
+  flex: 1;
+}
+
+.dashboard-session-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.dashboard-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.playback-button {
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.playback-button:hover {
+  background: #1565c0;
+}
+
+.playback-speed {
+  font-size: 14px;
+  color: #666;
+}
+
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dashboard-messages-section {
+  width: 400px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.messages-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.messages-subtitle {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 12px 0;
+}
+
+.messages-counter {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1976d2;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.message-card:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.message-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.message-info {
+  flex: 1;
+}
+
+.message-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.message-description {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 8px 0;
+}
+
+.message-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #999;
+}
+
+.message-data-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.data-point-label {
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  transition: all 0.2s;
+  display: inline-block;
+}
+
+.select-message-button {
+  width: 100%;
+  padding: 8px 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.select-message-button:hover {
+  background: #1565c0;
+}
+
+.select-message-button.selected {
+  background: #4caf50;
+}
+
+.dashboard-charts-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chart-panel {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  background: white;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px 0;
+  text-align: center;
+}
+
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.placeholder-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #999;
+  margin: 0 0 4px 0;
+}
+
+.placeholder-hint {
+  font-size: 13px;
+  color: #bbb;
+  margin: 0;
+}
+
+canvas {
+  max-height: 350px;
+}
+

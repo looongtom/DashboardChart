@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../style/managements.css';
 import { SessionContext } from '../context/SessionContext';
-import { fetchSessionDashboardData } from '../js/sessionApi';
+import { fetchSessionMessages } from '../js/sessionApi';
 
 const mockSessions = [
   {
@@ -43,7 +43,7 @@ function ManagementsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sessions] = useState(mockSessions);
   const navigate = useNavigate();
-  const { setSelectedSessionId, setSessionData } = useContext(SessionContext);
+  const { setSelectedSessionId, setSelectedSessionName, setSessionMessages } = useContext(SessionContext);
 
   const filteredSessions = sessions.filter(session =>
     session.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -56,12 +56,16 @@ function ManagementsPage() {
   const handleViewDetails = async (sessionId) => {
     console.log('View details for session:', sessionId);
 
+    // Tìm session để lấy tên
+    const session = sessions.find(s => s.id === sessionId);
+    
     // Lưu session đang chọn vào context
     setSelectedSessionId(sessionId);
+    setSelectedSessionName(session?.name || `Session_${sessionId}`);
 
-    // Mock call API để lấy data dashboard cho phiên này
-    const data = await fetchSessionDashboardData(sessionId);
-    setSessionData(data);
+    // Mock call API để lấy danh sách bản tin trong phiên này
+    const messages = await fetchSessionMessages(sessionId);
+    setSessionMessages(messages);
 
     // Điều hướng sang Dashboard để xem chi tiết
     navigate('/');
