@@ -1,8 +1,10 @@
 import { dashboardConfigs } from './dashboardConfig';
 import { initializeData } from './mockData';
+import { assignDataPointColors } from './dataPointColors';
 
 // Mock data for session messages/newsletters
-export const mockSessionMessages = [
+// Lưu ý: dataPoints không có màu sắc, sẽ được gán tự động khi fetch
+const rawMockSessionMessages = [
   {
     id: 'msg1',
     name: 'Temperature Sensor Data',
@@ -11,8 +13,21 @@ export const mockSessionMessages = [
     frequency: '500ms',
     recordCount: 543,
     dataPoints: [
-      { id: 'temp', label: 'Nhiệt độ (°C)', color: 'rgb(255, 99, 132)' },
-      { id: 'humidity', label: 'Độ ẩm (%)', color: 'rgb(75, 192, 192)' }
+      { id: 'temp', label: 'Nhiệt độ (°C)' },
+      { id: 'temp1', label: 'Nhiệt độ (°C)' },
+      { id: 'temp2', label: 'Nhiệt độ (°C)' },
+      { id: 'temp3', label: 'Nhiệt độ (°C)' },
+      { id: 'temp4', label: 'Nhiệt độ (°C)' },
+      { id: 'temp5', label: 'Nhiệt độ (°C)' },
+      { id: 'temp6', label: 'Nhiệt độ (°C)' },
+      { id: 'temp7', label: 'Nhiệt độ (°C)' },
+      { id: 'temp8', label: 'Nhiệt độ (°C)' },
+      { id: 'temp9', label: 'Nhiệt độ (°C)' },
+      { id: 'temp10', label: 'Nhiệt độ (°C)' },
+      { id: 'temp11', label: 'Nhiệt độ (°C)' },
+      { id: 'temp12', label: 'Nhiệt độ (°C)' },
+      { id: 'temp13', label: 'Nhiệt độ (°C)' },
+      { id: 'humidity', label: 'Độ ẩm (%)' }
     ]
   },
   {
@@ -23,9 +38,9 @@ export const mockSessionMessages = [
     frequency: '1s',
     recordCount: 271,
     dataPoints: [
-      { id: 'voltage', label: 'Điện áp (V)', color: 'rgb(54, 162, 235)' },
-      { id: 'current', label: 'Dòng điện (A)', color: 'rgb(153, 102, 255)' },
-      { id: 'power', label: 'Công suất (W)', color: 'rgb(255, 159, 64)' }
+      { id: 'voltage', label: 'Điện áp (V)' },
+      { id: 'current', label: 'Dòng điện (A)' },
+      { id: 'power', label: 'Công suất (W)' }
     ]
   },
   {
@@ -36,9 +51,9 @@ export const mockSessionMessages = [
     frequency: '200ms',
     recordCount: 1356,
     dataPoints: [
-      { id: 'speed', label: 'Tốc độ (RPM)', color: 'rgb(50, 205, 50)' },
-      { id: 'motor_speed', label: 'Tốc độ động cơ', color: 'rgb(72, 209, 204)' },
-      { id: 'torque', label: 'Mô-men xoắn (Nm)', color: 'rgb(255, 140, 0)' }
+      { id: 'speed', label: 'Tốc độ (RPM)' },
+      { id: 'motor_speed', label: 'Tốc độ động cơ' },
+      { id: 'torque', label: 'Mô-men xoắn (Nm)' }
     ]
   },
   {
@@ -49,7 +64,7 @@ export const mockSessionMessages = [
     frequency: '1s',
     recordCount: 271,
     dataPoints: [
-      { id: 'pressure', label: 'Áp suất (kPa)', color: 'rgb(255, 205, 86)' }
+      { id: 'pressure', label: 'Áp suất (kPa)' }
     ]
   },
   {
@@ -60,8 +75,8 @@ export const mockSessionMessages = [
     frequency: '2s',
     recordCount: 135,
     dataPoints: [
-      { id: 'frequency', label: 'Tần số (Hz)', color: 'rgb(138, 43, 226)' },
-      { id: 'amplitude', label: 'Biên độ', color: 'rgb(255, 20, 147)' }
+      { id: 'frequency', label: 'Tần số (Hz)' },
+      { id: 'amplitude', label: 'Biên độ' }
     ]
   }
 ];
@@ -73,7 +88,13 @@ export async function fetchSessionMessages(sessionId) {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 300));
 
-  return mockSessionMessages;
+  // Gán màu tự động cho các data points (giả lập dữ liệu thực tế không có màu)
+  const messagesWithColors = rawMockSessionMessages.map(message => ({
+    ...message,
+    dataPoints: assignDataPointColors(message.dataPoints)
+  }));
+
+  return messagesWithColors;
 }
 
 // Mock API call to fetch dashboard data for a specific session (legacy, kept for compatibility)
