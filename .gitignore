@@ -41,3 +41,5 @@ docs/.vuepress/dist
 ./simple-chart/node_modules/*
 ./simple-chart/package-lock.json
 ./simple-chart/.parcel-cache    
+./simple-chart/.history/*
+.history/*

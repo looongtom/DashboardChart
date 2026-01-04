@@ -24,9 +24,10 @@ html, body {
   white-space: nowrap;
   scrollbar-width: thin;
   scrollbar-color: #c0c0c0 #f0f0f0;
-  width: 100%;
+  /* Constrain width to parent container - prevent expansion beyond parent */
   max-width: 100%;
   min-width: 0;
+  width: 100%;
   box-sizing: border-box;
 }
 

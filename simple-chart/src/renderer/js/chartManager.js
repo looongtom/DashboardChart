@@ -1,7 +1,7 @@
 import Chart from 'chart.js/auto'
 import 'chartjs-adapter-date-fns'
 import zoomPlugin from 'chartjs-plugin-zoom'
-import { timeScaleAdjustPlugin } from './plugins.js'
+import { timeScaleAdjustPlugin, verticalHoverLinePlugin } from './plugins.js'
 import { createCustomLegend } from './legend.js'
 
 // Configuration for sliding window (time range to display)
@@ -14,7 +14,7 @@ export function createCharts(dashboardConfigs) {
       document.getElementById(config.id),
       {
         type: 'line',
-        plugins: [zoomPlugin, timeScaleAdjustPlugin],
+        plugins: [zoomPlugin, timeScaleAdjustPlugin, verticalHoverLinePlugin],
         data: {
           datasets: config.datasets.map(dataset => ({
             label: dataset.label,
@@ -144,90 +144,106 @@ export function createCharts(dashboardConfigs) {
   return charts;
 }
 
+// Update a single chart with new data (helper function)
+export function updateSingleChart(chart, config, legendId) {
+  if (!chart || !config) return;
+  
+  // Update data
+  config.datasets.forEach((dataset, datasetIndex) => {
+    if (chart.data.datasets[datasetIndex]) {
+      chart.data.datasets[datasetIndex].data = dataset.data.map(row => ({
+        x: row.timestamp,
+        y: row.count
+      }));
+    }
+  });
+  
+  const xScale = chart.scales.x;
+  if (!xScale) {
+    chart.update('none');
+    if (legendId) {
+      createCustomLegend(chart, legendId);
+    }
+    return;
+  }
+  
+  const dataLength = chart.data.datasets[0]?.data?.length || 0;
+  if (dataLength === 0) {
+    chart.update('none');
+    if (legendId) {
+      createCustomLegend(chart, legendId);
+    }
+    return;
+  }
+  
+  const lastTimestamp = chart.data.datasets[0].data[dataLength - 1].x;
+  const firstTimestamp = chart.data.datasets[0].data[0].x;
+  
+  // Calculate expected auto-scroll range
+  let expectedMin, expectedMax;
+  if (lastTimestamp - firstTimestamp >= SLIDING_WINDOW_SIZE) {
+    expectedMin = lastTimestamp - SLIDING_WINDOW_SIZE;
+    expectedMax = lastTimestamp;
+  } else {
+    expectedMin = undefined;
+    expectedMax = undefined;
+  }
+  
+  // Get current scale values
+  const currentMin = xScale.options.min;
+  const currentMax = xScale.options.max;
+  
+  // Check if user has manually zoomed/panned by comparing with expected auto-scroll values
+  // Allow small tolerance for floating point differences
+  const tolerance = 1000; // 1 second tolerance
+  const minDiff = currentMin !== undefined && expectedMin !== undefined 
+    ? Math.abs(currentMin - expectedMin) 
+    : (currentMin !== expectedMin ? Infinity : 0);
+  const maxDiff = currentMax !== undefined && expectedMax !== undefined 
+    ? Math.abs(currentMax - expectedMax) 
+    : (currentMax !== expectedMax ? Infinity : 0);
+  
+  const hasUserInteracted = minDiff > tolerance || maxDiff > tolerance;
+  
+  // If user hasn't interacted, auto-scroll to show latest data
+  if (!hasUserInteracted) {
+    if (expectedMin !== undefined && expectedMax !== undefined) {
+      xScale.options.min = expectedMin;
+      xScale.options.max = expectedMax;
+    } else {
+      // Not enough data yet, show all data
+      xScale.options.min = undefined;
+      xScale.options.max = undefined;
+    }
+  } else {
+    // User has zoomed/panned - check if they're viewing near the latest data
+    const currentMaxValue = xScale.max || lastTimestamp;
+    const timeDiffFromLatest = lastTimestamp - currentMaxValue;
+    
+    // If user is viewing data within 10 seconds of the latest, resume auto-scroll
+    if (timeDiffFromLatest < 10000 && expectedMin !== undefined && expectedMax !== undefined) {
+      // Resume auto-scroll
+      xScale.options.min = expectedMin;
+      xScale.options.max = expectedMax;
+    }
+    // Otherwise, keep user's current zoom/pan position
+  }
+  
+  // Update chart without animation for smooth real-time updates
+  chart.update('none');
+  
+  // Update custom legend to reflect any visibility changes
+  if (legendId) {
+    createCustomLegend(chart, legendId);
+  }
+}
+
 // Update all charts with new data
 export function updateCharts(charts, dashboardConfigs) {
   // Update each chart
   dashboardConfigs.forEach((config, chartIndex) => {
     const chart = charts[chartIndex];
-    
-    // Update data
-    config.datasets.forEach((dataset, datasetIndex) => {
-      chart.data.datasets[datasetIndex].data = dataset.data.map(row => ({
-        x: row.timestamp,
-        y: row.count
-      }));
-    });
-    
-    const xScale = chart.scales.x;
-    if (!xScale) {
-      chart.update('none');
-      return;
-    }
-    
-    const dataLength = chart.data.datasets[0]?.data?.length || 0;
-    if (dataLength === 0) {
-      chart.update('none');
-      return;
-    }
-    
-    const lastTimestamp = chart.data.datasets[0].data[dataLength - 1].x;
-    const firstTimestamp = chart.data.datasets[0].data[0].x;
-    
-    // Calculate expected auto-scroll range
-    let expectedMin, expectedMax;
-    if (lastTimestamp - firstTimestamp >= SLIDING_WINDOW_SIZE) {
-      expectedMin = lastTimestamp - SLIDING_WINDOW_SIZE;
-      expectedMax = lastTimestamp;
-    } else {
-      expectedMin = undefined;
-      expectedMax = undefined;
-    }
-    
-    // Get current scale values
-    const currentMin = xScale.options.min;
-    const currentMax = xScale.options.max;
-    
-    // Check if user has manually zoomed/panned by comparing with expected auto-scroll values
-    // Allow small tolerance for floating point differences
-    const tolerance = 1000; // 1 second tolerance
-    const minDiff = currentMin !== undefined && expectedMin !== undefined 
-      ? Math.abs(currentMin - expectedMin) 
-      : (currentMin !== expectedMin ? Infinity : 0);
-    const maxDiff = currentMax !== undefined && expectedMax !== undefined 
-      ? Math.abs(currentMax - expectedMax) 
-      : (currentMax !== expectedMax ? Infinity : 0);
-    
-    const hasUserInteracted = minDiff > tolerance || maxDiff > tolerance;
-    
-    // If user hasn't interacted, auto-scroll to show latest data
-    if (!hasUserInteracted) {
-      if (expectedMin !== undefined && expectedMax !== undefined) {
-        xScale.options.min = expectedMin;
-        xScale.options.max = expectedMax;
-      } else {
-        // Not enough data yet, show all data
-        xScale.options.min = undefined;
-        xScale.options.max = undefined;
-      }
-    } else {
-      // User has zoomed/panned - check if they're viewing near the latest data
-      const currentMaxValue = xScale.max || lastTimestamp;
-      const timeDiffFromLatest = lastTimestamp - currentMaxValue;
-      
-      // If user is viewing data within 10 seconds of the latest, resume auto-scroll
-      if (timeDiffFromLatest < 10000 && expectedMin !== undefined && expectedMax !== undefined) {
-        // Resume auto-scroll
-        xScale.options.min = expectedMin;
-        xScale.options.max = expectedMax;
-      }
-      // Otherwise, keep user's current zoom/pan position
-    }
-    
-    // Update chart without animation for smooth real-time updates
-    chart.update('none');
-    
-    // Update custom legend to reflect any visibility changes
-    createCustomLegend(chart, `legend-${config.id}`);
+    updateSingleChart(chart, config, `legend-${config.id}`);
   });
 }
 

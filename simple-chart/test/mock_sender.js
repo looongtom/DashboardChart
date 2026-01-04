@@ -1,0 +1,282 @@
+// mock_sender.js
+const dgram = require('dgram');
+
+// Configuration matches the Electron Worker
+const TARGET_PORT = 41234; // Port for sending periodic data to Electron worker
+const TARGET_HOST = '127.0.0.1'; // Localhost
+const LISTEN_PORT = 41235; // Port to listen for requests (different from 41234 to avoid conflict with Electron worker)
+
+// Mock sessions data (same structure as was in ManagementsPage.jsx)
+const mockSessions = [
+  {
+    id: 1,
+    name: 'Session_TEST_1',
+    status: 'running',
+    startTime: '2024-12-30 08:00',
+    endTime: null,
+    records: 1543
+  },
+  {
+    id: 2,
+    name: 'Session_TEST_2',
+    status: 'ended',
+    startTime: '2024-12-29 14:30',
+    endTime: '2024-12-29 16:45',
+    records: 3421
+  },
+  {
+    id: 3,
+    name: 'Session_TEST_3',
+    status: 'ended',
+    startTime: '2024-12-29 09:15',
+    endTime: '2024-12-29 11:20',
+    records: 2156
+  },
+  {
+    id: 4,
+    name: 'Session_TEST_4',
+    status: 'ended',
+    startTime: '2024-12-28 16:00',
+    endTime: '2024-12-28 18:30',
+    records: 4892
+  }
+];
+
+// Mock session messages data (same structure as rawMockSessionMessages in sessionApi.js)
+const mockSessionMessages = [
+  {
+    id: 'msg1',
+    name: 'Temperature Test',
+    description: 'Dữ liệu cảm biến nhiệt độ từ module Test',
+    frequency: '500ms',
+    recordCount: 543,
+    dataPoints: [
+      { id: 'temp', label: 'Nhiệt độ (°C)' },
+      { id: 'temp1', label: 'Nhiệt độ (°C)' },
+      { id: 'temp2', label: 'Nhiệt độ (°C)' },
+      { id: 'temp3', label: 'Nhiệt độ (°C)' },
+      { id: 'temp4', label: 'Nhiệt độ (°C)' },
+      { id: 'temp5', label: 'Nhiệt độ (°C)' },
+      { id: 'temp6', label: 'Nhiệt độ (°C)' },
+      { id: 'temp7', label: 'Nhiệt độ (°C)' },
+      { id: 'temp8', label: 'Nhiệt độ (°C)' },
+      { id: 'temp9', label: 'Nhiệt độ (°C)' },
+      { id: 'temp10', label: 'Nhiệt độ (°C)' },
+      { id: 'temp11', label: 'Nhiệt độ (°C)' },
+      { id: 'temp12', label: 'Nhiệt độ (°C)' },
+      { id: 'temp13', label: 'Nhiệt độ (°C)' },
+      { id: 'humidity', label: 'Độ ẩm (%)' }
+    ]
+  },
+  {
+    id: 'msg2',
+    name: 'Voltage Monitor',
+    description: 'Giám sát điện áp nguồn cấp hệ thống',
+    color: '#4444ff', // Blue
+    frequency: '1s',
+    recordCount: 271,
+    dataPoints: [
+      { id: 'voltage', label: 'Điện áp (V)' },
+      { id: 'current', label: 'Dòng điện (A)' },
+      { id: 'power', label: 'Công suất (W)' }
+    ]
+  },
+  {
+    id: 'msg3',
+    name: 'Motor Controller',
+    description: 'Thông số hoạt động động cơ chính',
+    frequency: '200ms',
+    recordCount: 1356,
+    dataPoints: [
+      { id: 'speed', label: 'Tốc độ (RPM)' },
+      { id: 'motor_speed', label: 'Tốc độ động cơ' },
+      { id: 'torque', label: 'Mô-men xoắn (Nm)' }
+    ]
+  },
+  {
+    id: 'msg4',
+    name: 'Pressure Sensor',
+    description: 'Cảm biến áp suất hệ thống thủy lực',
+    frequency: '1s',
+    recordCount: 271,
+    dataPoints: [
+      { id: 'pressure', label: 'Áp suất (kPa)' }
+    ]
+  },
+  {
+    id: 'msg5',
+    name: 'Frequency Analyzer',
+    description: 'Phân tích tần số tín hiệu hệ thống',
+    frequency: '2s',
+    recordCount: 135,
+    dataPoints: [
+      { id: 'frequency', label: 'Tần số (Hz)' },
+      { id: 'amplitude', label: 'Biên độ' }
+    ]
+  }
+];
+
+// Create separate sockets: one for sending periodic data, one for listening to requests
+// Note: We use SO_REUSEADDR to allow binding even if Electron worker is using the port
+// In practice, the Electron worker will receive requests and forward them, but we'll
+// also set up a listener here as a fallback/alternative approach
+const clientSocket = dgram.createSocket('udp4'); // For sending periodic data
+const serverSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true }); // For receiving requests
+
+// Chart Selection Guide:
+// To visualize this mock data in the dashboard, set selectedCharts to:
+// setSelectedCharts([
+//   { messageId: 'msg1' }, // Temperature Sensor Data
+//   { messageId: 'msg2' }, // Voltage Monitor
+//   { messageId: 'msg3' }, // Motor Controller
+//   { messageId: 'msg4' }, // Pressure Sensor
+//   { messageId: 'msg5' }  // Frequency Analyzer
+// ]);
+// Note: Maximum 4 charts can be selected at once in the UI
+
+let counter = 0;
+
+// Handle incoming UDP messages (requests) on server socket
+serverSocket.on('message', (msg, rinfo) => {
+  try {
+    const request = JSON.parse(msg.toString());
+    
+    // Handle GET_SESSIONS request
+    if (request.type === 'GET_SESSIONS') {
+      const response = {
+        type: 'SESSIONS_RESPONSE',
+        data: mockSessions
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      // Send response back to the sender
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending sessions response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent sessions response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+    
+    // Handle GET_SESSION_MESSAGES request
+    if (request.type === 'GET_SESSION_MESSAGES') {
+      const sessionId = request.sessionId;
+      // For now, return the same messages for all sessionIds
+      const response = {
+        type: 'SESSION_MESSAGES_RESPONSE',
+        data: mockSessionMessages
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      // Send response back to the sender
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending session messages response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent session messages response for session ${sessionId} to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+  } catch (error) {
+    // Not a JSON request or invalid format, ignore
+    // (might be other UDP traffic or periodic data)
+  }
+});
+
+// Bind server socket to listen on port 41235 for requests
+serverSocket.bind(LISTEN_PORT, () => {
+  const address = serverSocket.address();
+  console.log(`📡 Server socket listening on: ${address.address}:${address.port} for requests`);
+});
+
+console.log(`🚀 Mock UDP Sender/Server started.`);
+console.log(`Sending periodic data to: ${TARGET_HOST}:${TARGET_PORT}`);
+console.log(`Attempting to listen for requests on: ${LISTEN_PORT}`);
+console.log('Press Ctrl+C to stop.');
+console.log('\n📊 Chart Selection Guide:');
+console.log('   - msg1: Temperature Sensor Data (temp, temp1-13, humidity)');
+console.log('   - msg2: Voltage Monitor (voltage, current, power)');
+console.log('   - msg3: Motor Controller (speed, motor_speed, torque)');
+console.log('   - msg4: Pressure Sensor (pressure)');
+console.log('   - msg5: Frequency Analyzer (frequency, amplitude)');
+console.log('   Select these message IDs in the dashboard to visualize the data.');
+console.log('\n📋 Sessions API:');
+console.log('   - Listening for GET_SESSIONS requests');
+console.log('   - Listening for GET_SESSION_MESSAGES requests');
+console.log('   - Will respond with mock sessions and session messages data\n');
+
+setInterval(() => {
+  counter++;
+
+  // Create a dummy payload simulating real data
+  // This payload includes data points that match the session messages
+  // Format: { dataPointId: value, ... }
+  // The dataPointId must match the 'id' field in sessionMessages dataPoints
+  const payload = JSON.stringify({
+    // Temperature Sensor Data (msg1) - Select messageId: 'msg1'
+    temp: 25 + Math.sin(counter * 0.05) * 5 + Math.random() * 2, // 20-30°C
+    temp1: 26 + Math.sin(counter * 0.06) * 4 + Math.random() * 1.5,
+    temp2: 24 + Math.sin(counter * 0.07) * 3 + Math.random() * 1.8,
+    temp3: 27 + Math.sin(counter * 0.08) * 4.5 + Math.random() * 2,
+    temp4: 25.5 + Math.sin(counter * 0.05) * 3.5 + Math.random() * 1.7,
+    temp5: 26.2 + Math.sin(counter * 0.06) * 4.2 + Math.random() * 1.9,
+    temp6: 24.8 + Math.sin(counter * 0.07) * 3.8 + Math.random() * 1.6,
+    temp7: 25.9 + Math.sin(counter * 0.08) * 4.1 + Math.random() * 2.1,
+    temp8: 26.5 + Math.sin(counter * 0.05) * 3.9 + Math.random() * 1.8,
+    temp9: 25.3 + Math.sin(counter * 0.06) * 4.3 + Math.random() * 2.2,
+    temp10: 26.7 + Math.sin(counter * 0.07) * 4.0 + Math.random() * 1.5,
+    temp11: 25.1 + Math.sin(counter * 0.08) * 3.7 + Math.random() * 1.9,
+    temp12: 26.3 + Math.sin(counter * 0.05) * 4.4 + Math.random() * 2.0,
+    temp13: 25.6 + Math.sin(counter * 0.06) * 3.6 + Math.random() * 1.7,
+    humidity: 60 + Math.sin(counter * 0.03) * 10 + Math.random() * 5, // 50-70%
+    
+    // Voltage Monitor (msg2) - Select messageId: 'msg2'
+    voltage: 220 + Math.sin(counter * 0.02) * 5 + Math.random() * 2, // 215-225V
+    current: 5 + Math.sin(counter * 0.04) * 1 + Math.random() * 0.5, // 4-6A
+    power: 1100 + Math.sin(counter * 0.03) * 100 + Math.random() * 50, // 1000-1200W
+    
+    // Motor Controller (msg3) - Select messageId: 'msg3'
+    speed: 1500 + Math.sin(counter * 0.1) * 200 + Math.random() * 50, // 1300-1700 RPM
+    motor_speed: 1480 + Math.sin(counter * 0.11) * 180 + Math.random() * 45,
+    torque: 25 + Math.sin(counter * 0.08) * 5 + Math.random() * 2, // 20-30 Nm
+    
+    // Pressure Sensor (msg4) - Select messageId: 'msg4'
+    pressure: 100 + Math.sin(counter * 0.05) * 20 + Math.random() * 5, // 80-120 kPa
+    
+    // Frequency Analyzer (msg5) - Select messageId: 'msg5'
+    frequency: 50 + Math.sin(counter * 0.02) * 2 + Math.random() * 0.5, // 48-52 Hz
+    amplitude: 0.8 + Math.sin(counter * 0.15) * 0.2 + Math.random() * 0.1 // 0.6-1.0
+  });
+
+  const message = Buffer.from(payload);
+
+  // Send periodic data using client socket
+  clientSocket.send(message, TARGET_PORT, TARGET_HOST, (err) => {
+    if (err) {
+      console.error('Error sending message:', err);
+    } else {
+      console.log(`[${new Date().toLocaleTimeString()}] Sent packet #${counter}: ${payload}`);
+    }
+  });
+}, 1000); // Send every 1 second
+
+// Handle socket errors
+clientSocket.on('error', (err) => {
+  console.error('Client socket error:', err);
+});
+
+serverSocket.on('error', (err) => {
+  // Ignore EADDRINUSE errors as they're expected if Electron worker is using the port
+  if (err.code !== 'EADDRINUSE') {
+    console.error('Server socket error:', err);
+  }
+});
+
+// Cleanup on exit
+process.on('SIGINT', () => {
+  console.log('\nShutting down...');
+  clientSocket.close();
+  serverSocket.close();
+  process.exit(0);
+});
