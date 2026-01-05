@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../style/managements.css';
 import { SessionContext } from '../context/SessionContext';
-import { fetchSessionMessages, fetchSessions } from '../js/sessionApi';
+import { fetchSessionMessages, fetchSessions, startDetailSession } from '../js/sessionApi';
 
 function ManagementsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,6 +63,14 @@ function ManagementsPage() {
       } else {
         console.warn('No messages found for session:', sessionId);
         setSessionMessages([]);
+      }
+
+      // Start payload message streaming
+      try {
+        await startDetailSession();
+      } catch (error) {
+        console.error('Error starting detail session:', error);
+        // Don't block navigation if this fails
       }
 
       // Điều hướng sang Dashboard để xem chi tiết

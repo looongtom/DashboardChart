@@ -21,6 +21,11 @@ function createUdpWorker() {
       if (mainWindow) {
         mainWindow.webContents.send('udp-data-received', msg.payload);
       }
+    } else if (msg.type === 'HEARTBEAT_MESSAGE') {
+      // Forward heartbeat messages to the React Renderer
+      if (mainWindow) {
+        mainWindow.webContents.send('heartbeat-received', msg.payload);
+      }
     } else if (msg.type === 'STATUS') {
       console.log('Worker Status:', msg.status);
     }

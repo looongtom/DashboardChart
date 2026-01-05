@@ -237,3 +237,47 @@ export async function fetchSessions() {
     });
   });
 }
+
+// Send DETAIL_SESSION_START request to start payload message streaming
+export async function startDetailSession() {
+  console.log('[sessionApi] Sending DETAIL_SESSION_START request...');
+  
+  if (!window.electronAPI || !window.electronAPI.sendUdp) {
+    console.warn('[sessionApi] electronAPI.sendUdp not available');
+    return;
+  }
+
+  try {
+    const request = JSON.stringify({ type: 'DETAIL_SESSION_START' });
+    await window.electronAPI.sendUdp({
+      message: request,
+      address: '127.0.0.1',
+      port: 41235
+    });
+    console.log('[sessionApi] DETAIL_SESSION_START request sent successfully');
+  } catch (error) {
+    console.error('[sessionApi] Error sending DETAIL_SESSION_START request:', error);
+  }
+}
+
+// Send DETAIL_SESSION_END request to stop payload message streaming
+export async function stopDetailSession() {
+  console.log('[sessionApi] Sending DETAIL_SESSION_END request...');
+  
+  if (!window.electronAPI || !window.electronAPI.sendUdp) {
+    console.warn('[sessionApi] electronAPI.sendUdp not available');
+    return;
+  }
+
+  try {
+    const request = JSON.stringify({ type: 'DETAIL_SESSION_END' });
+    await window.electronAPI.sendUdp({
+      message: request,
+      address: '127.0.0.1',
+      port: 41235
+    });
+    console.log('[sessionApi] DETAIL_SESSION_END request sent successfully');
+  } catch (error) {
+    console.error('[sessionApi] Error sending DETAIL_SESSION_END request:', error);
+  }
+}

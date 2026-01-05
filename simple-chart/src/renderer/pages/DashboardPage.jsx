@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { generateMockData } from '../js/mockData';
 import { createCharts, updateCharts, updateSingleChart } from '../js/chartManager';
 import { SessionContext } from '../context/SessionContext';
+import { stopDetailSession } from '../js/sessionApi';
 import Chart from 'chart.js/auto';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { timeScaleAdjustPlugin, verticalHoverLinePlugin } from '../js/plugins.js';
@@ -211,6 +212,12 @@ function DashboardPage() {
           return;
         }
 
+        // Skip HEARTBEAT_MESSAGES - they don't contain chart data
+        if (parsedData.type === 'HEARTBEAT_MESSAGES') {
+          // Heartbeat messages are handled separately via heartbeat-received event
+          return;
+        }
+
         // Use UDP timestamp or current time
         const dataTimestamp = udpTimestamp || Date.now();
 
@@ -334,7 +341,14 @@ function DashboardPage() {
     return selectedCharts.some(s => s.messageId === messageId);
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    // Stop payload message streaming before navigating away
+    try {
+      await stopDetailSession();
+    } catch (error) {
+      console.error('Error stopping detail session:', error);
+      // Don't block navigation if this fails
+    }
     navigate('/managements');
   };
 

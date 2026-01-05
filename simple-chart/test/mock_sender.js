@@ -135,6 +135,75 @@ const serverSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true }); // F
 // Note: Maximum 4 charts can be selected at once in the UI
 
 let counter = 0;
+let payloadInterval = null; // Interval for sending payload messages
+
+// Function to generate mock payload data based on mockSessionMessages
+function generatePayloadData() {
+  const payload = {};
+  
+  // Generate data for each message type
+  mockSessionMessages.forEach(message => {
+    message.dataPoints.forEach(dataPoint => {
+      const dataPointId = dataPoint.id;
+      
+      // Generate realistic mock values based on data point type
+      if (dataPointId.startsWith('temp')) {
+        // Temperature: 20-30°C with some variation
+        payload[dataPointId] = 20 + Math.random() * 10 + Math.sin(counter * 0.1) * 2;
+      } else if (dataPointId === 'humidity') {
+        // Humidity: 40-60%
+        payload[dataPointId] = 40 + Math.random() * 20 + Math.sin(counter * 0.05) * 5;
+      } else if (dataPointId === 'voltage') {
+        // Voltage: 220-240V
+        payload[dataPointId] = 220 + Math.random() * 20 + Math.sin(counter * 0.02) * 3;
+      } else if (dataPointId === 'current') {
+        // Current: 5-15A
+        payload[dataPointId] = 5 + Math.random() * 10 + Math.sin(counter * 0.03) * 2;
+      } else if (dataPointId === 'power') {
+        // Power: 1000-3000W
+        payload[dataPointId] = 1000 + Math.random() * 2000 + Math.sin(counter * 0.02) * 200;
+      } else if (dataPointId === 'speed' || dataPointId === 'motor_speed') {
+        // Speed: 1000-3000 RPM
+        payload[dataPointId] = 1000 + Math.random() * 2000 + Math.sin(counter * 0.1) * 300;
+      } else if (dataPointId === 'torque') {
+        // Torque: 50-150 Nm
+        payload[dataPointId] = 50 + Math.random() * 100 + Math.sin(counter * 0.08) * 20;
+      } else if (dataPointId === 'pressure') {
+        // Pressure: 100-500 kPa
+        payload[dataPointId] = 100 + Math.random() * 400 + Math.sin(counter * 0.05) * 50;
+      } else if (dataPointId === 'frequency') {
+        // Frequency: 50-60 Hz
+        payload[dataPointId] = 50 + Math.random() * 10 + Math.sin(counter * 0.1) * 2;
+      } else if (dataPointId === 'amplitude') {
+        // Amplitude: 0-100
+        payload[dataPointId] = Math.abs(Math.sin(counter * 0.2) * 50 + Math.random() * 20);
+      } else {
+        // Default: random value between 0-100
+        payload[dataPointId] = Math.random() * 100;
+      }
+      
+      // Round to 2 decimal places
+      payload[dataPointId] = Math.round(payload[dataPointId] * 100) / 100;
+    });
+  });
+  
+  return payload;
+}
+
+// Function to send payload message
+function sendPayloadMessage() {
+  counter++;
+  const payloadData = generatePayloadData();
+  const message = Buffer.from(JSON.stringify(payloadData));
+  
+  clientSocket.send(message, TARGET_PORT, TARGET_HOST, (err) => {
+    if (err) {
+      console.error('Error sending payload message:', err);
+    } else {
+      // console.log(`[${new Date().toLocaleTimeString()}] Sent payload #${counter}`);
+    }
+  });
+}
 
 // Handle incoming UDP messages (requests) on server socket
 serverSocket.on('message', (msg, rinfo) => {
@@ -160,7 +229,7 @@ serverSocket.on('message', (msg, rinfo) => {
     }
     
     // Handle GET_SESSION_MESSAGES request
-    if (request.type === 'GET_SESSION_MESSAGES') {
+    if (request.type === 'HEARTBEAT_MESSAGES') {
       const sessionId = request.sessionId;
       // For now, return the same messages for all sessionIds
       const response = {
@@ -178,6 +247,68 @@ serverSocket.on('message', (msg, rinfo) => {
         }
       });
     }
+
+    if (request.type === 'HEARTBEAT_MESSAGES') {
+      const timestamp = request.timestamp;
+      console.log(`[${new Date().toLocaleTimeString()}] Received heartbeat message at timestamp: ${timestamp}`);
+    }
+
+    // Handle DETAIL_SESSION_START request
+    if (request.type === 'DETAIL_SESSION_START') {
+      // Stop any existing interval
+      if (payloadInterval) {
+        clearInterval(payloadInterval);
+        payloadInterval = null;
+      }
+      
+      // Start sending payload messages
+      counter = 0;
+      payloadInterval = setInterval(sendPayloadMessage, 1000); // Send every 100ms (10 times per second)
+      console.log(`[${new Date().toLocaleTimeString()}] Started sending payload messages (interval: 100ms)`);
+      
+      // Send acknowledgment response
+      const response = {
+        type: 'DETAIL_SESSION_START_RESPONSE',
+        status: 'started',
+        timestamp: Date.now()
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending DETAIL_SESSION_START response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_START response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+
+    // Handle DETAIL_SESSION_END request
+    if (request.type === 'DETAIL_SESSION_END') {
+      // Stop sending payload messages
+      if (payloadInterval) {
+        clearInterval(payloadInterval);
+        payloadInterval = null;
+        console.log(`[${new Date().toLocaleTimeString()}] Stopped sending payload messages`);
+      }
+      
+      // Send acknowledgment response
+      const response = {
+        type: 'DETAIL_SESSION_END_RESPONSE',
+        status: 'stopped',
+        timestamp: Date.now()
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending DETAIL_SESSION_END response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_END response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+
   } catch (error) {
     // Not a JSON request or invalid format, ignore
     // (might be other UDP traffic or periodic data)
@@ -204,59 +335,27 @@ console.log('   Select these message IDs in the dashboard to visualize the data.
 console.log('\n📋 Sessions API:');
 console.log('   - Listening for GET_SESSIONS requests');
 console.log('   - Listening for GET_SESSION_MESSAGES requests');
+console.log('   - Listening for DETAIL_SESSION_START requests (starts payload messages)');
+console.log('   - Listening for DETAIL_SESSION_END requests (stops payload messages)');
 console.log('   - Will respond with mock sessions and session messages data\n');
 
 setInterval(() => {
   counter++;
 
-  // Create a dummy payload simulating real data
-  // This payload includes data points that match the session messages
-  // Format: { dataPointId: value, ... }
-  // The dataPointId must match the 'id' field in sessionMessages dataPoints
-  const payload = JSON.stringify({
-    // Temperature Sensor Data (msg1) - Select messageId: 'msg1'
-    temp: 25 + Math.sin(counter * 0.05) * 5 + Math.random() * 2, // 20-30°C
-    temp1: 26 + Math.sin(counter * 0.06) * 4 + Math.random() * 1.5,
-    temp2: 24 + Math.sin(counter * 0.07) * 3 + Math.random() * 1.8,
-    temp3: 27 + Math.sin(counter * 0.08) * 4.5 + Math.random() * 2,
-    temp4: 25.5 + Math.sin(counter * 0.05) * 3.5 + Math.random() * 1.7,
-    temp5: 26.2 + Math.sin(counter * 0.06) * 4.2 + Math.random() * 1.9,
-    temp6: 24.8 + Math.sin(counter * 0.07) * 3.8 + Math.random() * 1.6,
-    temp7: 25.9 + Math.sin(counter * 0.08) * 4.1 + Math.random() * 2.1,
-    temp8: 26.5 + Math.sin(counter * 0.05) * 3.9 + Math.random() * 1.8,
-    temp9: 25.3 + Math.sin(counter * 0.06) * 4.3 + Math.random() * 2.2,
-    temp10: 26.7 + Math.sin(counter * 0.07) * 4.0 + Math.random() * 1.5,
-    temp11: 25.1 + Math.sin(counter * 0.08) * 3.7 + Math.random() * 1.9,
-    temp12: 26.3 + Math.sin(counter * 0.05) * 4.4 + Math.random() * 2.0,
-    temp13: 25.6 + Math.sin(counter * 0.06) * 3.6 + Math.random() * 1.7,
-    humidity: 60 + Math.sin(counter * 0.03) * 10 + Math.random() * 5, // 50-70%
-    
-    // Voltage Monitor (msg2) - Select messageId: 'msg2'
-    voltage: 220 + Math.sin(counter * 0.02) * 5 + Math.random() * 2, // 215-225V
-    current: 5 + Math.sin(counter * 0.04) * 1 + Math.random() * 0.5, // 4-6A
-    power: 1100 + Math.sin(counter * 0.03) * 100 + Math.random() * 50, // 1000-1200W
-    
-    // Motor Controller (msg3) - Select messageId: 'msg3'
-    speed: 1500 + Math.sin(counter * 0.1) * 200 + Math.random() * 50, // 1300-1700 RPM
-    motor_speed: 1480 + Math.sin(counter * 0.11) * 180 + Math.random() * 45,
-    torque: 25 + Math.sin(counter * 0.08) * 5 + Math.random() * 2, // 20-30 Nm
-    
-    // Pressure Sensor (msg4) - Select messageId: 'msg4'
-    pressure: 100 + Math.sin(counter * 0.05) * 20 + Math.random() * 5, // 80-120 kPa
-    
-    // Frequency Analyzer (msg5) - Select messageId: 'msg5'
-    frequency: 50 + Math.sin(counter * 0.02) * 2 + Math.random() * 0.5, // 48-52 Hz
-    amplitude: 0.8 + Math.sin(counter * 0.15) * 0.2 + Math.random() * 0.1 // 0.6-1.0
+  // Create HEARTBEAT_MESSAGES payload
+  const heartbeatMessage = JSON.stringify({
+    type: 'HEARTBEAT_MESSAGES',
+    timestamp: Date.now()
   });
 
-  const message = Buffer.from(payload);
+  const message = Buffer.from(heartbeatMessage);
 
-  // Send periodic data using client socket
+  // Send HEARTBEAT_MESSAGES to TARGET_PORT using client socket
   clientSocket.send(message, TARGET_PORT, TARGET_HOST, (err) => {
     if (err) {
-      console.error('Error sending message:', err);
+      console.error('Error sending heartbeat message:', err);
     } else {
-      console.log(`[${new Date().toLocaleTimeString()}] Sent packet #${counter}: ${payload}`);
+      // console.log(`[${new Date().toLocaleTimeString()}] Sent heartbeat #${counter}: ${heartbeatMessage}`);
     }
   });
 }, 1000); // Send every 1 second
@@ -276,6 +375,13 @@ serverSocket.on('error', (err) => {
 // Cleanup on exit
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
+  
+  // Stop payload interval if running
+  if (payloadInterval) {
+    clearInterval(payloadInterval);
+    payloadInterval = null;
+  }
+  
   clientSocket.close();
   serverSocket.close();
   process.exit(0);
