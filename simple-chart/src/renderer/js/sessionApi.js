@@ -1,6 +1,10 @@
 import { dashboardConfigs } from './dashboardConfig';
 import { initializeData } from './mockData';
 import { assignDataPointColors } from './dataPointColors';
+import { PacketHandler, mergePackets, base64ToUint8Array } from './packetUtils';
+
+// Packet handler for binary UDP responses (chunked packets)
+const packetHandler = new PacketHandler();
 
 // Mock data for session messages/newsletters
 // Lưu ý: dataPoints không có màu sắc, sẽ được gán tự động khi fetch
@@ -102,13 +106,29 @@ export async function fetchSessionMessages(sessionId) {
       if (responseReceived) return;
 
       try {
-        const { msg } = udpPayload;
+        const { msg, isBinary } = udpPayload;
         let parsedData;
-        
+
         try {
-          parsedData = JSON.parse(msg);
+          if (isBinary) {
+            // Binary response: decode base64, handle packet chunks, then parse JSON payload
+            const rawBytes = base64ToUint8Array(msg);
+            const mergedPacket = packetHandler.handlePacket(rawBytes, mergePackets);
+
+            // Wait until all chunks for this message are received
+            if (!mergedPacket) {
+              return;
+            }
+
+            const decoder = new TextDecoder();
+            const jsonString = decoder.decode(mergedPacket.payload);
+            parsedData = JSON.parse(jsonString);
+          } else {
+            // Legacy JSON response
+            parsedData = JSON.parse(msg);
+          }
         } catch (e) {
-          // Not a JSON response, ignore
+          // Not a valid response, ignore
           return;
         }
 
@@ -194,13 +214,29 @@ export async function fetchSessions() {
       if (responseReceived) return;
 
       try {
-        const { msg } = udpPayload;
+        const { msg, isBinary } = udpPayload;
         let parsedData;
-        
+
         try {
-          parsedData = JSON.parse(msg);
+          if (isBinary) {
+            // Binary response: decode base64, handle packet chunks, then parse JSON payload
+            const rawBytes = base64ToUint8Array(msg);
+            const mergedPacket = packetHandler.handlePacket(rawBytes, mergePackets);
+
+            // Wait until all chunks for this message are received
+            if (!mergedPacket) {
+              return;
+            }
+
+            const decoder = new TextDecoder();
+            const jsonString = decoder.decode(mergedPacket.payload);
+            parsedData = JSON.parse(jsonString);
+          } else {
+            // Legacy JSON response
+            parsedData = JSON.parse(msg);
+          }
         } catch (e) {
-          // Not a JSON response, ignore
+          // Not a valid response, ignore
           return;
         }
 

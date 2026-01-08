@@ -1,5 +1,6 @@
 // mock_sender.js
 const dgram = require('dgram');
+const { PacketHandler, mergePackets, splitPacket, encodePacketToBytes } = require('./split.js');
 
 // Configuration matches the Electron Worker
 const TARGET_PORT = 41234; // Port for sending periodic data to Electron worker
@@ -123,6 +124,9 @@ const mockSessionMessages = [
 const clientSocket = dgram.createSocket('udp4'); // For sending periodic data
 const serverSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true }); // For receiving requests
 
+// Create packet handler for processing incoming packets
+const handler = new PacketHandler();
+
 // Chart Selection Guide:
 // To visualize this mock data in the dashboard, set selectedCharts to:
 // setSelectedCharts([
@@ -207,28 +211,63 @@ function sendPayloadMessage() {
 
 // Handle incoming UDP messages (requests) on server socket
 serverSocket.on('message', (msg, rinfo) => {
-  try {
-    const request = JSON.parse(msg.toString());
+  console.log(`Received ${msg.length} bytes from ${rinfo.address}:${rinfo.port}`);
+  
+  const rawData = msg; // This is raw data
+  
+  // Handle the packet
+  const result = handler.handlePacket(rawData, mergePackets);
+  
+  if (result !== null) {
+    console.log('✓ Complete message received!');
+    console.log('Message ID:', result.messageId.toString());
+    console.log('Total payload length:', result.payload.length);
+    console.log('Source:', result.sourceAddress, ':', result.sourcePort);
     
-    // Handle GET_SESSIONS request
+    // Process your complete merged packet here
+    // For example, convert payload to string if it's text:
+    const text = Buffer.from(result.payload).toString('utf8');
+    console.log('Payload:', text);
+    
+    try {
+      const request = JSON.parse(text);
+      
+      // Handle GET_SESSIONS request
     if (request.type === 'GET_SESSIONS') {
       const response = {
         type: 'SESSIONS_RESPONSE',
         data: mockSessions
       };
       
-      const responseBuffer = Buffer.from(JSON.stringify(response));
-      // Send response back to the sender
-      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
-        if (err) {
-          console.error('Error sending sessions response:', err);
-        } else {
-          console.log(`[${new Date().toLocaleTimeString()}] Sent sessions response to ${rinfo.address}:${rinfo.port}`);
-        }
+      const payload = Buffer.from(JSON.stringify(response));
+      const chunkSize = 1024; // 1KB chunks
+      const messageId = Date.now();
+      const sourceAddress = TARGET_HOST;
+      const sourcePort = LISTEN_PORT;
+
+      const packets = splitPacket(payload, chunkSize, messageId, sourceAddress, sourcePort);
+
+      console.log(`[${new Date().toLocaleTimeString()}] Split SESSIONS_RESPONSE into ${packets.length} packets`);
+
+      packets.forEach((packet, index) => {
+        const encodedPacket = encodePacketToBytes(packet);
+
+        serverSocket.send(encodedPacket, rinfo.port, rinfo.address, (err) => {
+          if (err) {
+            console.error(`Error sending sessions response packet ${index + 1}/${packets.length}:`, err);
+          } else {
+            // Only log once for the whole response to avoid spamming
+            if (index === packets.length - 1) {
+              console.log(
+                `[${new Date().toLocaleTimeString()}] Sent SESSIONS_RESPONSE (${packets.length} packets) to ${rinfo.address}:${rinfo.port}`
+              );
+            }
+          }
+        });
       });
     }
-    
-    // Handle GET_SESSION_MESSAGES request
+      
+      // Handle GET_SESSION_MESSAGES request
     if (request.type === 'HEARTBEAT_MESSAGES') {
       const sessionId = request.sessionId;
       // For now, return the same messages for all sessionIds
@@ -237,24 +276,43 @@ serverSocket.on('message', (msg, rinfo) => {
         data: mockSessionMessages
       };
       
-      const responseBuffer = Buffer.from(JSON.stringify(response));
-      // Send response back to the sender
-      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
-        if (err) {
-          console.error('Error sending session messages response:', err);
-        } else {
-          console.log(`[${new Date().toLocaleTimeString()}] Sent session messages response for session ${sessionId} to ${rinfo.address}:${rinfo.port}`);
-        }
+      const payload = Buffer.from(JSON.stringify(response));
+      const chunkSize = 1024; // 1KB chunks
+      const messageId = Date.now();
+      const sourceAddress = TARGET_HOST;
+      const sourcePort = LISTEN_PORT;
+
+      const packets = splitPacket(payload, chunkSize, messageId, sourceAddress, sourcePort);
+
+      console.log(
+        `[${new Date().toLocaleTimeString()}] Split SESSION_MESSAGES_RESPONSE for session ${sessionId} into ${packets.length} packets`
+      );
+
+      packets.forEach((packet, index) => {
+        const encodedPacket = encodePacketToBytes(packet);
+
+        serverSocket.send(encodedPacket, rinfo.port, rinfo.address, (err) => {
+          if (err) {
+            console.error(
+              `Error sending session messages response packet ${index + 1}/${packets.length} for session ${sessionId}:`,
+              err
+            );
+          } else if (index === packets.length - 1) {
+            console.log(
+              `[${new Date().toLocaleTimeString()}] Sent SESSION_MESSAGES_RESPONSE (${packets.length} packets) for session ${sessionId} to ${rinfo.address}:${rinfo.port}`
+            );
+          }
+        });
       });
     }
 
-    if (request.type === 'HEARTBEAT_MESSAGES') {
-      const timestamp = request.timestamp;
-      console.log(`[${new Date().toLocaleTimeString()}] Received heartbeat message at timestamp: ${timestamp}`);
-    }
+      if (request.type === 'HEARTBEAT_MESSAGES') {
+        const timestamp = request.timestamp;
+        console.log(`[${new Date().toLocaleTimeString()}] Received heartbeat message at timestamp: ${timestamp}`);
+      }
 
-    // Handle DETAIL_SESSION_START request
-    if (request.type === 'DETAIL_SESSION_START') {
+      // Handle DETAIL_SESSION_START request
+      if (request.type === 'DETAIL_SESSION_START') {
       // Stop any existing interval
       if (payloadInterval) {
         clearInterval(payloadInterval);
@@ -281,10 +339,10 @@ serverSocket.on('message', (msg, rinfo) => {
           console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_START response to ${rinfo.address}:${rinfo.port}`);
         }
       });
-    }
+      }
 
-    // Handle DETAIL_SESSION_END request
-    if (request.type === 'DETAIL_SESSION_END') {
+      // Handle DETAIL_SESSION_END request
+      if (request.type === 'DETAIL_SESSION_END') {
       // Stop sending payload messages
       if (payloadInterval) {
         clearInterval(payloadInterval);
@@ -307,11 +365,11 @@ serverSocket.on('message', (msg, rinfo) => {
           console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_END response to ${rinfo.address}:${rinfo.port}`);
         }
       });
+      }
+    } catch (error) {
+      // Not a JSON request or invalid format, ignore
+      // (might be other UDP traffic or periodic data)
     }
-
-  } catch (error) {
-    // Not a JSON request or invalid format, ignore
-    // (might be other UDP traffic or periodic data)
   }
 });
 
@@ -348,15 +406,26 @@ setInterval(() => {
     timestamp: Date.now()
   });
 
-  const message = Buffer.from(heartbeatMessage);
+  const payload = Buffer.from(heartbeatMessage);
+  const chunkSize = 1024; // 1KB chunks
+  const messageId = Date.now();
+  const sourceAddress = TARGET_HOST;
+  const sourcePort = 5000; // Source port for packets
 
-  // Send HEARTBEAT_MESSAGES to TARGET_PORT using client socket
-  clientSocket.send(message, TARGET_PORT, TARGET_HOST, (err) => {
-    if (err) {
-      console.error('Error sending heartbeat message:', err);
-    } else {
-      // console.log(`[${new Date().toLocaleTimeString()}] Sent heartbeat #${counter}: ${heartbeatMessage}`);
-    }
+  // Split payload into packets
+  const packets = splitPacket(payload, chunkSize, messageId, sourceAddress, sourcePort);
+
+  // Send each packet via UDP
+  packets.forEach((packet, index) => {
+    const encodedPacket = encodePacketToBytes(packet);
+    
+    clientSocket.send(encodedPacket, TARGET_PORT, TARGET_HOST, (err) => {
+      if (err) {
+        console.error(`Error sending heartbeat packet ${index}:`, err);
+      } else {
+        // console.log(`Sent heartbeat packet ${index + 1}/${packets.length}`);
+      }
+    });
   });
 }, 1000); // Send every 1 second
 

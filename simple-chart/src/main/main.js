@@ -93,10 +93,10 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handler: React wants to send a UDP message
-ipcMain.handle('send-udp', (event, { message, address, port }) => {
+ipcMain.handle('send-udp', (event, { message, address, port, isBinary }) => {
   // Pass the command to the Worker Thread
   udpWorker.postMessage({ 
     type: 'SEND_UDP', 
-    payload: { message, address, port } 
+    payload: { message, address, port, isBinary } 
   });
 });
