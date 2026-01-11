@@ -11,7 +11,7 @@ const mockSessions = [
   {
     id: 1,
     name: 'Session_TEST_1',
-    status: 'running',
+    status: 'ended',
     startTime: '2024-12-30 08:00',
     endTime: null,
     records: 1543
@@ -136,6 +136,11 @@ const serverSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true }); // F
 
 let counter = 0;
 let payloadInterval = null; // Interval for sending payload messages
+
+// Track current recording session
+let currentRecordingSession = null;
+let recordingStartTime = null;
+let recordingRecordCount = 0;
 
 // Function to generate mock payload data based on mockSessionMessages
 function generatePayloadData() {
@@ -309,6 +314,137 @@ serverSocket.on('message', (msg, rinfo) => {
       });
     }
 
+    // Handle START_RECORDING_SESSION request
+    if (request.type === 'START_RECORDING_SESSION') {
+      // Check if there's already a recording session running
+      if (currentRecordingSession) {
+        console.log(`[${new Date().toLocaleTimeString()}] Recording session already running: ${currentRecordingSession.sessionId}`);
+        // Still send response with existing session
+        const response = {
+          type: 'RECORDING_SESSION_STARTED',
+          data: {
+            sessionId: currentRecordingSession.sessionId,
+            sessionName: currentRecordingSession.sessionName,
+            startTime: currentRecordingSession.startTime
+          }
+        };
+        
+        const responseBuffer = Buffer.from(JSON.stringify(response));
+        serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+          if (err) {
+            console.error('Error sending RECORDING_SESSION_STARTED response:', err);
+          } else {
+            console.log(`[${new Date().toLocaleTimeString()}] Sent RECORDING_SESSION_STARTED response to ${rinfo.address}:${rinfo.port}`);
+          }
+        });
+        return;
+      }
+
+      // Generate new session ID (use timestamp + random number)
+      const sessionId = Date.now();
+      const sessionName = `Session_REC_${new Date().toISOString().slice(0, 10).replace(/-/g, '_')}_${sessionId % 10000}`;
+      const startTime = new Date().toISOString();
+      
+      // Initialize recording session
+      currentRecordingSession = {
+        sessionId: sessionId,
+        sessionName: sessionName,
+        startTime: startTime
+      };
+      recordingStartTime = Date.now();
+      recordingRecordCount = 0;
+      
+      console.log(`[${new Date().toLocaleTimeString()}] Started recording session: ${sessionName} (ID: ${sessionId})`);
+      
+      // Send response
+      const response = {
+        type: 'RECORDING_SESSION_STARTED',
+        data: {
+          sessionId: sessionId,
+          sessionName: sessionName,
+          startTime: startTime
+        }
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending RECORDING_SESSION_STARTED response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent RECORDING_SESSION_STARTED response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+
+    // Handle STOP_RECORDING_SESSION request
+    if (request.type === 'STOP_RECORDING_SESSION') {
+      const requestedSessionId = request.sessionId;
+      
+      // Check if there's a recording session
+      if (!currentRecordingSession) {
+        console.log(`[${new Date().toLocaleTimeString()}] No recording session to stop`);
+        // Send error response or empty response
+        const response = {
+          type: 'RECORDING_SESSION_STOPPED',
+          data: {
+            sessionId: requestedSessionId || null,
+            endTime: new Date().toISOString(),
+            totalRecords: 0
+          }
+        };
+        
+        const responseBuffer = Buffer.from(JSON.stringify(response));
+        serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+          if (err) {
+            console.error('Error sending RECORDING_SESSION_STOPPED response:', err);
+          } else {
+            console.log(`[${new Date().toLocaleTimeString()}] Sent RECORDING_SESSION_STOPPED response (no active session) to ${rinfo.address}:${rinfo.port}`);
+          }
+        });
+        return;
+      }
+
+      // Check if sessionId matches (if provided)
+      if (requestedSessionId && currentRecordingSession.sessionId !== requestedSessionId) {
+        console.log(`[${new Date().toLocaleTimeString()}] Session ID mismatch. Requested: ${requestedSessionId}, Current: ${currentRecordingSession.sessionId}`);
+        // Still send response with current session
+      }
+
+      // Calculate duration and generate mock record count
+      const endTime = new Date().toISOString();
+      const duration = recordingStartTime ? (Date.now() - recordingStartTime) / 1000 : 0; // seconds
+      // Generate mock record count based on duration (assume ~10 records per second)
+      const totalRecords = Math.floor(duration * 10) + Math.floor(Math.random() * 100);
+      
+      const stoppedSessionData = {
+        sessionId: currentRecordingSession.sessionId,
+        endTime: endTime,
+        totalRecords: totalRecords
+      };
+      
+      console.log(`[${new Date().toLocaleTimeString()}] Stopped recording session: ${currentRecordingSession.sessionName} (ID: ${currentRecordingSession.sessionId}), Records: ${totalRecords}`);
+      
+      // Clear recording session
+      currentRecordingSession = null;
+      recordingStartTime = null;
+      recordingRecordCount = 0;
+      
+      // Send response
+      const response = {
+        type: 'RECORDING_SESSION_STOPPED',
+        data: stoppedSessionData
+      };
+      
+      const responseBuffer = Buffer.from(JSON.stringify(response));
+      serverSocket.send(responseBuffer, rinfo.port, rinfo.address, (err) => {
+        if (err) {
+          console.error('Error sending RECORDING_SESSION_STOPPED response:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent RECORDING_SESSION_STOPPED response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+    }
+
   } catch (error) {
     // Not a JSON request or invalid format, ignore
     // (might be other UDP traffic or periodic data)
@@ -337,6 +473,8 @@ console.log('   - Listening for GET_SESSIONS requests');
 console.log('   - Listening for GET_SESSION_MESSAGES requests');
 console.log('   - Listening for DETAIL_SESSION_START requests (starts payload messages)');
 console.log('   - Listening for DETAIL_SESSION_END requests (stops payload messages)');
+console.log('   - Listening for START_RECORDING_SESSION requests (starts background recording)');
+console.log('   - Listening for STOP_RECORDING_SESSION requests (stops background recording)');
 console.log('   - Will respond with mock sessions and session messages data\n');
 
 setInterval(() => {

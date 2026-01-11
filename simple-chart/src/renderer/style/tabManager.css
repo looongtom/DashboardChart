@@ -5,6 +5,9 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .tab-container {
@@ -81,6 +84,32 @@
 
 .tab-label {
   line-height: 1;
+}
+
+.recording-status-indicator {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  gap: 8px;
+}
+
+.recording-indicator {
+  width: 8px;
+  height: 8px;
+  background: #f44336;
+  border-radius: 50%;
+  display: inline-block;
+  animation: blink 1.5s infinite;
+  box-shadow: 0 0 4px rgba(244, 67, 54, 0.6);
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .app-container {

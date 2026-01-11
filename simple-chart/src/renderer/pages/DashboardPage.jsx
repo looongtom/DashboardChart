@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { generateMockData } from '../js/mockData';
 import { createCharts, updateCharts, updateSingleChart } from '../js/chartManager';
 import { SessionContext } from '../context/SessionContext';
-import { stopDetailSession } from '../js/sessionApi';
+import { stopDetailSession, fetchSessionMessages, startDetailSession } from '../js/sessionApi';
 import Chart from 'chart.js/auto';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { timeScaleAdjustPlugin, verticalHoverLinePlugin } from '../js/plugins.js';
@@ -15,7 +15,17 @@ function DashboardPage() {
   const chartsRef = useRef([]);
   const intervalRef = useRef(null);
   const configsRef = useRef([]); // Store current chart configs for UDP updates
-  const { selectedSessionId, selectedSessionName, sessionMessages } = useContext(SessionContext);
+  const { 
+    selectedSessionId, 
+    selectedSessionName, 
+    sessionMessages,
+    setSelectedSessionId,
+    setSelectedSessionName,
+    setSessionMessages,
+    isRecording,
+    activeSessionId,
+    activeSessionName
+  } = useContext(SessionContext);
   
   const [selectedCharts, setSelectedCharts] = useState([]); // Array of { messageId } - mỗi message sẽ hiển thị tất cả data points trên cùng 1 chart
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,6 +34,53 @@ function DashboardPage() {
   const [fullScreenChartIndex, setFullScreenChartIndex] = useState(null); // Index of chart in full screen mode
   const fullScreenChartRef = useRef(null); // Reference to full screen chart instance
   const fullScreenChartIndexRef = useRef(null); // Ref to track full screen chart index for UDP updates
+
+  // Auto-detect active recording session when Dashboard loads
+  // Only auto-load if there's NO selected session (user navigated directly to Dashboard)
+  // If user clicked "Xem chi tiết" on a session, respect that choice
+  useEffect(() => {
+    // Only auto-load active session if:
+    // 1. There's an active recording session
+    // 2. NO session is currently selected (user came directly to Dashboard)
+    // 3. This ensures we don't override user's choice to view an old session
+    if (isRecording && activeSessionId && !selectedSessionId) {
+      const loadActiveSession = async () => {
+        try {
+          console.log('[Dashboard] Auto-loading active recording session:', activeSessionId);
+          setSelectedSessionId(activeSessionId);
+          setSelectedSessionName(activeSessionName || `Session_${activeSessionId}`);
+          
+          // For live sessions, we'll get messages from the active session
+          // The messages should be available via UDP streaming
+          // For now, we'll try to fetch them, but they might be empty initially
+          try {
+            const messages = await fetchSessionMessages(activeSessionId);
+            if (messages && messages.length > 0) {
+              setSessionMessages(messages);
+            } else {
+              // If no messages yet, we'll wait for UDP data
+              // Set empty array for now, UDP listener will handle updates
+              setSessionMessages([]);
+            }
+          } catch (err) {
+            console.warn('[Dashboard] Could not fetch messages for active session, will use UDP stream:', err);
+            setSessionMessages([]);
+          }
+          
+          // Start live data streaming
+          try {
+            await startDetailSession();
+          } catch (error) {
+            console.error('[Dashboard] Error starting detail session:', error);
+          }
+        } catch (error) {
+          console.error('[Dashboard] Error loading active session:', error);
+        }
+      };
+      
+      loadActiveSession();
+    }
+  }, [isRecording, activeSessionId, activeSessionName, selectedSessionId, setSelectedSessionId, setSelectedSessionName, setSessionMessages]);
 
   // Initialize charts when selections change
   useEffect(() => {
@@ -535,11 +592,18 @@ function DashboardPage() {
     }
   }, [selectedCharts, fullScreenChartIndex]);
 
+  // Show empty state only if there's no selected session
+  // Don't auto-show active session - only show if user explicitly selected it or navigated directly
   if (!sessionMessages || !selectedSessionName) {
     return (
       <div className="dashboard-page">
         <div className="dashboard-empty">
           <p>Vui lòng chọn một phiên log từ trang Managements để xem chi tiết.</p>
+          {isRecording && activeSessionId && !selectedSessionId && (
+            <p style={{ marginTop: '12px', color: '#4caf50', fontWeight: '500' }}>
+              Đang tải phiên đang chạy...
+            </p>
+          )}
           <button onClick={handleBack} className="back-button">← Quay lại</button>
         </div>
       </div>
@@ -556,9 +620,32 @@ function DashboardPage() {
         <div className="dashboard-header-left">
           <button onClick={handleBack} className="back-button">←</button>
           <div className="dashboard-title-section">
-            <h1 className="dashboard-session-title">{selectedSessionName}</h1>
+            <h1 className="dashboard-session-title">
+              {selectedSessionName}
+              {isRecording && selectedSessionId === activeSessionId && (
+                <span style={{ 
+                  marginLeft: '12px', 
+                  fontSize: '14px', 
+                  color: '#4caf50',
+                  fontWeight: 'normal'
+                }}>
+                  (Đang chạy)
+                </span>
+              )}
+              {isRecording && selectedSessionId !== activeSessionId && (
+                <span style={{ 
+                  marginLeft: '12px', 
+                  fontSize: '12px', 
+                  color: '#999',
+                  fontWeight: 'normal',
+                  fontStyle: 'italic'
+                }}>
+                  (Đang xem lịch sử - Ghi log vẫn tiếp tục)
+                </span>
+              )}
+            </h1>
             <p className="dashboard-subtitle">
-              Chế độ Phân tích • {totalMessages} loại bản tin • {selectedCount}/4 đã chọn
+              {isRecording && selectedSessionId === activeSessionId ? 'Chế độ Realtime' : 'Chế độ Phân tích'} • {totalMessages} loại bản tin • {selectedCount}/4 đã chọn
             </p>
           </div>
         </div>

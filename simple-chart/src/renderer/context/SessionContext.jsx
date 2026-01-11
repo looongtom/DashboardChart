@@ -9,6 +9,12 @@ export const SessionContext = createContext({
   setSessionMessages: () => {},
   sessionData: null,
   setSessionData: () => {},
+  isRecording: false,
+  setIsRecording: () => {},
+  activeSessionId: null,
+  setActiveSessionId: () => {},
+  activeSessionName: null,
+  setActiveSessionName: () => {},
 });
 
 export function SessionProvider({ children }) {
@@ -16,6 +22,9 @@ export function SessionProvider({ children }) {
   const [selectedSessionName, setSelectedSessionName] = useState(null);
   const [sessionMessages, setSessionMessages] = useState(null);
   const [sessionData, setSessionData] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [activeSessionName, setActiveSessionName] = useState(null);
 
   return (
     <SessionContext.Provider
@@ -28,6 +37,12 @@ export function SessionProvider({ children }) {
         setSessionMessages,
         sessionData,
         setSessionData,
+        isRecording,
+        setIsRecording,
+        activeSessionId,
+        setActiveSessionId,
+        activeSessionName,
+        setActiveSessionName,
       }}
     >
       {children}

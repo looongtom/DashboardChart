@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../style/tabManager.css';
+import { SessionContext } from '../context/SessionContext';
 
 const tabs = [
   { path: '/', label: 'Dashboard', icon: '📊' },
@@ -12,6 +13,7 @@ const tabs = [
 function TabManager() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isRecording } = useContext(SessionContext);
 
   return (
     <div className="tab-manager">
@@ -30,6 +32,12 @@ function TabManager() {
           );
         })}
       </div>
+      {isRecording && (
+        <div className="recording-status-indicator" title="Đang ghi log - Hệ thống đang ghi dữ liệu ngầm">
+          Đang nhận log
+          <span className="recording-indicator"></span>
+        </div>
+      )}
     </div>
   );
 }

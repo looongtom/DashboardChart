@@ -281,3 +281,130 @@ export async function stopDetailSession() {
     console.error('[sessionApi] Error sending DETAIL_SESSION_END request:', error);
   }
 }
+
+// Start a new recording session (Background Recording)
+export async function startRecordingSession() {
+  console.log('[sessionApi] Starting new recording session...');
+  
+  if (!window.electronAPI || !window.electronAPI.sendUdp) {
+    console.warn('[sessionApi] electronAPI.sendUdp not available');
+    throw new Error('electronAPI.sendUdp not available');
+  }
+
+  return new Promise((resolve, reject) => {
+    let responseReceived = false;
+    const timeout = setTimeout(() => {
+      if (!responseReceived) {
+        responseReceived = true;
+        window.electronAPI.removeUdpListener();
+        reject(new Error('Timeout: No response received from UDP server'));
+      }
+    }, 5000);
+
+    const handleUdpResponse = (udpPayload) => {
+      if (responseReceived) return;
+
+      try {
+        const { msg } = udpPayload;
+        let parsedData;
+        
+        try {
+          parsedData = JSON.parse(msg);
+        } catch (e) {
+          return;
+        }
+
+        if (parsedData.type === 'RECORDING_SESSION_STARTED' && parsedData.data) {
+          responseReceived = true;
+          clearTimeout(timeout);
+          window.electronAPI.removeUdpListener();
+          console.log('[sessionApi] Recording session started:', parsedData.data);
+          resolve(parsedData.data); // { sessionId, sessionName, startTime }
+        }
+      } catch (error) {
+        console.error('[sessionApi] Error parsing UDP response:', error);
+      }
+    };
+
+    window.electronAPI.onUdpData(handleUdpResponse);
+
+    const request = JSON.stringify({ type: 'START_RECORDING_SESSION' });
+    window.electronAPI.sendUdp({
+      message: request,
+      address: '127.0.0.1',
+      port: 41235
+    }).catch((error) => {
+      if (!responseReceived) {
+        responseReceived = true;
+        clearTimeout(timeout);
+        window.electronAPI.removeUdpListener();
+        reject(new Error(`Failed to send UDP request: ${error.message}`));
+      }
+    });
+  });
+}
+
+// Stop the current recording session
+export async function stopRecordingSession(sessionId) {
+  console.log('[sessionApi] Stopping recording session:', sessionId);
+  
+  if (!window.electronAPI || !window.electronAPI.sendUdp) {
+    console.warn('[sessionApi] electronAPI.sendUdp not available');
+    throw new Error('electronAPI.sendUdp not available');
+  }
+
+  return new Promise((resolve, reject) => {
+    let responseReceived = false;
+    const timeout = setTimeout(() => {
+      if (!responseReceived) {
+        responseReceived = true;
+        window.electronAPI.removeUdpListener();
+        reject(new Error('Timeout: No response received from UDP server'));
+      }
+    }, 5000);
+
+    const handleUdpResponse = (udpPayload) => {
+      if (responseReceived) return;
+
+      try {
+        const { msg } = udpPayload;
+        let parsedData;
+        
+        try {
+          parsedData = JSON.parse(msg);
+        } catch (e) {
+          return;
+        }
+
+        if (parsedData.type === 'RECORDING_SESSION_STOPPED' && parsedData.data) {
+          responseReceived = true;
+          clearTimeout(timeout);
+          window.electronAPI.removeUdpListener();
+          console.log('[sessionApi] Recording session stopped:', parsedData.data);
+          resolve(parsedData.data); // { sessionId, endTime, totalRecords }
+        }
+      } catch (error) {
+        console.error('[sessionApi] Error parsing UDP response:', error);
+      }
+    };
+
+    window.electronAPI.onUdpData(handleUdpResponse);
+
+    const request = JSON.stringify({ 
+      type: 'STOP_RECORDING_SESSION',
+      sessionId: sessionId
+    });
+    window.electronAPI.sendUdp({
+      message: request,
+      address: '127.0.0.1',
+      port: 41235
+    }).catch((error) => {
+      if (!responseReceived) {
+        responseReceived = true;
+        clearTimeout(timeout);
+        window.electronAPI.removeUdpListener();
+        reject(new Error(`Failed to send UDP request: ${error.message}`));
+      }
+    });
+  });
+}
