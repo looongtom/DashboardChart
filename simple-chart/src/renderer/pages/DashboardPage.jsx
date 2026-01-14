@@ -231,15 +231,15 @@ function DashboardPage() {
   useEffect(() => {
     console.log('[UDP Listener] 🔍 useEffect triggered', {
       hasElectronAPI: !!window.electronAPI,
-      hasOnUdpData: !!(window.electronAPI && window.electronAPI.onUdpData),
+      hasSubscribeUdpData: !!(window.electronAPI && window.electronAPI.subscribeUdpData),
       selectedChartsCount: selectedCharts.length,
       chartsCount: chartsRef.current.length,
       chartsReady: chartsReady,
       sessionMessagesCount: sessionMessages?.length || 0
     });
 
-    if (!window.electronAPI || !window.electronAPI.onUdpData) {
-      console.warn('electronAPI.onUdpData not available');
+    if (!window.electronAPI || !window.electronAPI.subscribeUdpData) {
+      console.warn('electronAPI.subscribeUdpData not available');
       return;
     }
 
@@ -362,16 +362,14 @@ function DashboardPage() {
       }
     };
 
-    // Register UDP listener
+    // Subscribe to 'ALL' UDP data (but filter HEARTBEAT_MESSAGES internally)
     console.log('[UDP Listener] 🔌 Registering UDP data handler...');
-    window.electronAPI.onUdpData(handleUdpData);
+    const unsubscribe = window.electronAPI.subscribeUdpData('ALL', handleUdpData);
     console.log('[UDP Listener] ✅ UDP listener registered successfully');
 
-    // Cleanup: remove listener when component unmounts or dependencies change
+    // Cleanup: unsubscribe when component unmounts or dependencies change
     return () => {
-      if (window.electronAPI && window.electronAPI.removeUdpListener) {
-        window.electronAPI.removeUdpListener();
-      }
+      unsubscribe();
     };
   }, [selectedCharts, sessionMessages, chartsReady]);
 
@@ -747,6 +745,36 @@ function DashboardPage() {
               );
             })}
           </div>
+
+          {/* Data Table - Only show for running sessions */}
+          {isRecording && selectedSessionId === activeSessionId && (
+            <div className="dashboard-table-container">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Column 1</th>
+                    <th>Column 2</th>
+                    <th>Column 3</th>
+                    <th>Column 4</th>
+                    <th>Column 5</th>
+                    <th>Column 6</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 20 }, (_, rowIndex) => (
+                    <tr key={rowIndex}>
+                      <td>Row {rowIndex + 1}, Col 1</td>
+                      <td>Row {rowIndex + 1}, Col 2</td>
+                      <td>Row {rowIndex + 1}, Col 3</td>
+                      <td>Row {rowIndex + 1}, Col 4</td>
+                      <td>Row {rowIndex + 1}, Col 5</td>
+                      <td>Row {rowIndex + 1}, Col 6</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

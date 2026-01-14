@@ -83,16 +83,18 @@ export async function fetchSessionMessages(sessionId) {
 
   return new Promise((resolve, reject) => {
     // Check if electronAPI is available
-    if (!window.electronAPI || !window.electronAPI.sendUdp || !window.electronAPI.onUdpData) {
+    if (!window.electronAPI || !window.electronAPI.sendUdp || !window.electronAPI.subscribeUdpData) {
       reject(new Error('electronAPI not available'));
       return;
     }
 
     let responseReceived = false;
+    let unsubscribe = null;
+    
     const timeout = setTimeout(() => {
       if (!responseReceived) {
         responseReceived = true;
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error('Timeout: No response received from UDP server'));
       }
     }, 5000); // 5 second timeout
@@ -116,7 +118,7 @@ export async function fetchSessionMessages(sessionId) {
         if (parsedData.type === 'SESSION_MESSAGES_RESPONSE' && Array.isArray(parsedData.data)) {
           responseReceived = true;
           clearTimeout(timeout);
-          window.electronAPI.removeUdpListener();
+          if (unsubscribe) unsubscribe();
           console.log('[sessionApi] Received session messages:', parsedData.data);
 
           // Gán màu tự động cho các data points (giả lập dữ liệu thực tế không có màu)
@@ -133,8 +135,8 @@ export async function fetchSessionMessages(sessionId) {
       }
     };
 
-    // Register the listener
-    window.electronAPI.onUdpData(handleUdpResponse);
+    // Subscribe to SESSION_MESSAGES_RESPONSE type
+    unsubscribe = window.electronAPI.subscribeUdpData('SESSION_MESSAGES_RESPONSE', handleUdpResponse);
 
     // Send UDP request to mock_sender (on port 41235 to avoid conflict with Electron worker on 41234)
     const request = JSON.stringify({ type: 'GET_SESSION_MESSAGES', sessionId: sessionId });
@@ -146,7 +148,7 @@ export async function fetchSessionMessages(sessionId) {
       if (!responseReceived) {
         responseReceived = true;
         clearTimeout(timeout);
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error(`Failed to send UDP request: ${error.message}`));
       }
     });
@@ -175,16 +177,18 @@ export async function fetchSessions() {
 
   return new Promise((resolve, reject) => {
     // Check if electronAPI is available
-    if (!window.electronAPI || !window.electronAPI.sendUdp || !window.electronAPI.onUdpData) {
+    if (!window.electronAPI || !window.electronAPI.sendUdp || !window.electronAPI.subscribeUdpData) {
       reject(new Error('electronAPI not available'));
       return;
     }
 
     let responseReceived = false;
+    let unsubscribe = null;
+    
     const timeout = setTimeout(() => {
       if (!responseReceived) {
         responseReceived = true;
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error('Timeout: No response received from UDP server'));
       }
     }, 5000); // 5 second timeout
@@ -208,7 +212,7 @@ export async function fetchSessions() {
         if (parsedData.type === 'SESSIONS_RESPONSE' && Array.isArray(parsedData.data)) {
           responseReceived = true;
           clearTimeout(timeout);
-          window.electronAPI.removeUdpListener();
+          if (unsubscribe) unsubscribe();
           console.log('[sessionApi] Received sessions:', parsedData.data);
           resolve(parsedData.data);
         }
@@ -218,8 +222,8 @@ export async function fetchSessions() {
       }
     };
 
-    // Register the listener
-    window.electronAPI.onUdpData(handleUdpResponse);
+    // Subscribe to SESSIONS_RESPONSE type
+    unsubscribe = window.electronAPI.subscribeUdpData('SESSIONS_RESPONSE', handleUdpResponse);
 
     // Send UDP request to mock_sender (on port 41235 to avoid conflict with Electron worker on 41234)
     const request = JSON.stringify({ type: 'GET_SESSIONS' });
@@ -231,7 +235,7 @@ export async function fetchSessions() {
       if (!responseReceived) {
         responseReceived = true;
         clearTimeout(timeout);
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error(`Failed to send UDP request: ${error.message}`));
       }
     });
@@ -293,10 +297,12 @@ export async function startRecordingSession() {
 
   return new Promise((resolve, reject) => {
     let responseReceived = false;
+    let unsubscribe = null;
+    
     const timeout = setTimeout(() => {
       if (!responseReceived) {
         responseReceived = true;
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error('Timeout: No response received from UDP server'));
       }
     }, 5000);
@@ -317,7 +323,7 @@ export async function startRecordingSession() {
         if (parsedData.type === 'RECORDING_SESSION_STARTED' && parsedData.data) {
           responseReceived = true;
           clearTimeout(timeout);
-          window.electronAPI.removeUdpListener();
+          if (unsubscribe) unsubscribe();
           console.log('[sessionApi] Recording session started:', parsedData.data);
           resolve(parsedData.data); // { sessionId, sessionName, startTime }
         }
@@ -326,7 +332,8 @@ export async function startRecordingSession() {
       }
     };
 
-    window.electronAPI.onUdpData(handleUdpResponse);
+    // Subscribe to RECORDING_SESSION_STARTED type
+    unsubscribe = window.electronAPI.subscribeUdpData('RECORDING_SESSION_STARTED', handleUdpResponse);
 
     const request = JSON.stringify({ type: 'START_RECORDING_SESSION' });
     window.electronAPI.sendUdp({
@@ -337,7 +344,7 @@ export async function startRecordingSession() {
       if (!responseReceived) {
         responseReceived = true;
         clearTimeout(timeout);
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error(`Failed to send UDP request: ${error.message}`));
       }
     });
@@ -355,10 +362,12 @@ export async function stopRecordingSession(sessionId) {
 
   return new Promise((resolve, reject) => {
     let responseReceived = false;
+    let unsubscribe = null;
+    
     const timeout = setTimeout(() => {
       if (!responseReceived) {
         responseReceived = true;
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error('Timeout: No response received from UDP server'));
       }
     }, 5000);
@@ -379,7 +388,7 @@ export async function stopRecordingSession(sessionId) {
         if (parsedData.type === 'RECORDING_SESSION_STOPPED' && parsedData.data) {
           responseReceived = true;
           clearTimeout(timeout);
-          window.electronAPI.removeUdpListener();
+          if (unsubscribe) unsubscribe();
           console.log('[sessionApi] Recording session stopped:', parsedData.data);
           resolve(parsedData.data); // { sessionId, endTime, totalRecords }
         }
@@ -388,7 +397,8 @@ export async function stopRecordingSession(sessionId) {
       }
     };
 
-    window.electronAPI.onUdpData(handleUdpResponse);
+    // Subscribe to RECORDING_SESSION_STOPPED type
+    unsubscribe = window.electronAPI.subscribeUdpData('RECORDING_SESSION_STOPPED', handleUdpResponse);
 
     const request = JSON.stringify({ 
       type: 'STOP_RECORDING_SESSION',
@@ -402,7 +412,7 @@ export async function stopRecordingSession(sessionId) {
       if (!responseReceived) {
         responseReceived = true;
         clearTimeout(timeout);
-        window.electronAPI.removeUdpListener();
+        if (unsubscribe) unsubscribe();
         reject(new Error(`Failed to send UDP request: ${error.message}`));
       }
     });

@@ -6,23 +6,26 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import ManagementsPage from './pages/ManagementsPage';
 import { SessionProvider } from './context/SessionContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   return (
     <SessionProvider>
-      <HashRouter>
-        <div className="app-container">
-          <TabManager />
-          <div className="page-content">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/managements" element={<ManagementsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
+      <NotificationProvider>
+        <HashRouter>
+          <div className="app-container">
+            <TabManager />
+            <div className="page-content">
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/managements" element={<ManagementsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </div>
           </div>
-        </div>
-      </HashRouter>
+        </HashRouter>
+      </NotificationProvider>
     </SessionProvider>
   );
 }

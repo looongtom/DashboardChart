@@ -248,14 +248,14 @@ serverSocket.on('message', (msg, rinfo) => {
         if (err) {
           console.error('Error sending session messages response:', err);
         } else {
-          console.log(`[${new Date().toLocaleTimeString()}] Sent session messages response for session ${sessionId} to ${rinfo.address}:${rinfo.port}`);
+          // console.log(`[${new Date().toLocaleTimeString()}] Sent session messages response for session ${sessionId} to ${rinfo.address}:${rinfo.port}`);
         }
       });
     }
 
     if (request.type === 'HEARTBEAT_MESSAGES') {
       const timestamp = request.timestamp;
-      console.log(`[${new Date().toLocaleTimeString()}] Received heartbeat message at timestamp: ${timestamp}`);
+      // console.log(`[${new Date().toLocaleTimeString()}] Received heartbeat message at timestamp: ${timestamp}`);
     }
 
     // Handle DETAIL_SESSION_START request
@@ -286,6 +286,23 @@ serverSocket.on('message', (msg, rinfo) => {
           console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_START response to ${rinfo.address}:${rinfo.port}`);
         }
       });
+
+      // Send notification message to trigger notification in the app
+      // This message goes to TARGET_PORT (41234) so it goes through the UDP worker
+      const notificationMessage = {
+        type: 'DETAIL_SESSION_STARTED',
+        message: 'Real-time data streaming has started',
+        timestamp: Date.now()
+      };
+      
+      const notificationBuffer = Buffer.from(JSON.stringify(notificationMessage));
+      clientSocket.send(notificationBuffer, TARGET_PORT, TARGET_HOST, (err) => {
+        if (err) {
+          console.error('Error sending DETAIL_SESSION_STARTED notification:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_STARTED notification`);
+        }
+      });
     }
 
     // Handle DETAIL_SESSION_END request
@@ -310,6 +327,23 @@ serverSocket.on('message', (msg, rinfo) => {
           console.error('Error sending DETAIL_SESSION_END response:', err);
         } else {
           console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_END response to ${rinfo.address}:${rinfo.port}`);
+        }
+      });
+
+      // Send notification message to trigger notification in the app
+      // This message goes to TARGET_PORT (41234) so it goes through the UDP worker
+      const notificationMessage = {
+        type: 'DETAIL_SESSION_STOPPED',
+        message: 'Real-time data streaming has stopped',
+        timestamp: Date.now()
+      };
+      
+      const notificationBuffer = Buffer.from(JSON.stringify(notificationMessage));
+      clientSocket.send(notificationBuffer, TARGET_PORT, TARGET_HOST, (err) => {
+        if (err) {
+          console.error('Error sending DETAIL_SESSION_STOPPED notification:', err);
+        } else {
+          console.log(`[${new Date().toLocaleTimeString()}] Sent DETAIL_SESSION_STOPPED notification`);
         }
       });
     }

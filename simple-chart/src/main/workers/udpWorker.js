@@ -46,8 +46,12 @@ socket.on('message', (msg, rinfo) => {
       
       // Send heartbeat to Main Process
       parentPort.postMessage({ type: 'HEARTBEAT_MESSAGE', payload: heartbeatData });
-      console.log(`UDP Worker: Received heartbeat at ${new Date(heartbeatData.timestamp).toLocaleTimeString()}`);
+      // console.log(`UDP Worker: Received heartbeat at ${new Date(heartbeatData.timestamp).toLocaleTimeString()}`);
       return;
+    }
+
+    if (parsedMsg.type === 'DETAIL_SESSION_STARTED') {
+      console.log('DETAIL_SESSION_STARTED', parsedMsg);
     }
     
     // For other messages, send as regular UDP_MESSAGE
